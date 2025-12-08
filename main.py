@@ -24,7 +24,8 @@ def run_ingestion(filename: str):
     # 2. Create orchestrator with config
     # ---------------------------------------------------------
     orchestrator = IngestionOrchestrator(config)
-
+    data = orchestrator.run('user_12345.json')
+    print(data)
     # ---------------------------------------------------------
     # 3. Run ingestion
     # ---------------------------------------------------------
