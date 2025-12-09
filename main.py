@@ -16,13 +16,15 @@ def run_ingestion(filename: str):
 
     # 2. Load file from S3
     loader = RawLoader(config)
-    raw_json = loader.load(filename)
+    raw_json = loader.load_from_s3(filename)
 
     # 3. Run validation
     orchestrator = IngestionOrchestrator(config)
     validated_payload = orchestrator.run(raw_json)
 
+    print(f"validated_payload: {validated_payload}")
     logger.info("ingestion step complete", validated=validated_payload)
+    print("done")
 
 
 if __name__ == '__main__':

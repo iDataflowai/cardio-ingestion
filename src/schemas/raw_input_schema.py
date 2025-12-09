@@ -1,29 +1,56 @@
-# src/ingestion/raw_loader.py
+# # src/ingestion/raw_loader.py
 
-from pydantic import BaseModel, Field, validator, root_validator
-from typing import Any, Dict
+from pydantic import BaseModel, Field, field_validator, model_validator
+from typing import Dict, Any, Optional, Union
 
 
 class RawInputSchema(BaseModel):
-    user_id: str = Field(..., description="Unique user identifier")
-    sample_id = Field(..., description="Hospital generated sample identifier, must be provided by hospital.")
-    trace_id: str | None = Field(None, description="Ignored if provided; ingestion layer generates a new trace_id")
+    """
+    Validation model for raw ingestion input loaded from S3 or API.
 
-    biomarkers: Dict[str, float | int | str | None] = Field(..., description="Raw biomarker values by hospital")
+    Rules:
+    - user_id: required
+    - sample_id: required (lab-generated, must not be empty)
+    - trace_id: must NOT be provided by client (strip if present)
+    - biomarkers: required non-empty dictionary
+    - metadata: optional
+    """
 
-    metadata: Dict[str, Any] | None = Field(None, description="additional metadata like, gender, age etc")
+    user_id: str = Field(..., description="User identifier")
 
-    @validator('biomarkers')
-    def validate_biomarkers(self, value):
-        if not value or not isinstance(value, str):
-            raise ValueError("biomarkers must be a non-empty dictionary")
-        return value
+    sample_id: str = Field(
+        ...,
+        description="Lab-generated sample identifier; MUST be provided"
+    )
 
-    @root_validator(pre=True)
-    def strip_user_trace_id(self, values):
-        if "trace_id" in values:
-            values["trace_id"] = None
-        return values
+    # trace_id will always be overwritten; incoming value ignored
+    trace_id: Optional[str] = Field(None, description="Ignored if provided; ingestion pipeline generates a new one.")
 
-    class Config:
-        extra = "ignore"
+    biomarkers: Dict[str, Union[float, int, str, None]] = Field(..., description="Dictionary of raw biomarker values")
+
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Extra info like age, sex, lab name, timestamps")
+
+    # ------------------------------
+    # Validators for Pydantic v2
+    # ------------------------------
+
+    # @field_validator("sample_id")
+    # def sample_id_required(self, v):
+    #     if v is None or v == "":
+    #         raise ValueError("sample_id must be provided by the lab and cannot be empty")
+    #     return v
+    #
+    # @field_validator("biomarkers")
+    # def validate_biomarkers(self, v):
+    #     if not v or not isinstance(v, dict):
+    #         raise ValueError("biomarkers must be a non-empty dictionary")
+    #     return v
+    #
+    # @model_validator(mode="before")
+    # def strip_trace_id(self, values):
+    #     # Ensure user-provided trace_id is ignored
+    #     if "trace_id" in values:
+    #         values["trace_id"] = None
+    #     return values
+
+    model_config = {"extra": "ignore"}
