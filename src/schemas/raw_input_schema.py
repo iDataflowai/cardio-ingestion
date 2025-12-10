@@ -1,56 +1,39 @@
-# # src/ingestion/raw_loader.py
-
 from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Dict, Any, Optional, Union
 
 
+class BiomarkerValueSchema(BaseModel):
+    raw_value: Union[float, int, Dict[str, float]]
+    raw_unit: str
+    is_range: bool
+    comment: Optional[str] = ""
+
+    @field_validator("raw_value")
+    def validate_raw_value(cls, v, info):
+        is_range = info.data.get("is_range", False)
+
+        if is_range:
+            if not isinstance(v, dict) or "min" not in v or "max" not in v:
+                raise ValueError("Range biomarkers require raw_value={min,max}")
+        else:
+            if not isinstance(v, (int, float)):
+                raise ValueError("raw_value must be numeric when is_range=false")
+
+        return v
+
+
 class RawInputSchema(BaseModel):
-    """
-    Validation model for raw ingestion input loaded from S3 or API.
+    user_id: str
+    sample_id: str
+    trace_id: Optional[str] = None
+    biomarkers: Dict[str, BiomarkerValueSchema]
+    metadata: Optional[Dict[str, Any]] = None
 
-    Rules:
-    - user_id: required
-    - sample_id: required (lab-generated, must not be empty)
-    - trace_id: must NOT be provided by client (strip if present)
-    - biomarkers: required non-empty dictionary
-    - metadata: optional
-    """
-
-    user_id: str = Field(..., description="User identifier")
-
-    sample_id: str = Field(
-        ...,
-        description="Lab-generated sample identifier; MUST be provided"
-    )
-
-    # trace_id will always be overwritten; incoming value ignored
-    trace_id: Optional[str] = Field(None, description="Ignored if provided; ingestion pipeline generates a new one.")
-
-    biomarkers: Dict[str, Union[float, int, str, None]] = Field(..., description="Dictionary of raw biomarker values")
-
-    metadata: Optional[Dict[str, Any]] = Field(None, description="Extra info like age, sex, lab name, timestamps")
-
-    # ------------------------------
-    # Validators for Pydantic v2
-    # ------------------------------
-
-    # @field_validator("sample_id")
-    # def sample_id_required(self, v):
-    #     if v is None or v == "":
-    #         raise ValueError("sample_id must be provided by the lab and cannot be empty")
-    #     return v
-    #
-    # @field_validator("biomarkers")
-    # def validate_biomarkers(self, v):
-    #     if not v or not isinstance(v, dict):
-    #         raise ValueError("biomarkers must be a non-empty dictionary")
-    #     return v
-    #
-    # @model_validator(mode="before")
-    # def strip_trace_id(self, values):
-    #     # Ensure user-provided trace_id is ignored
-    #     if "trace_id" in values:
-    #         values["trace_id"] = None
-    #     return values
+    @model_validator(mode="before")
+    def strip_trace_id(cls, data):
+        if isinstance(data, dict):
+            data = data.copy()
+            data["trace_id"] = None   # always override
+        return data
 
     model_config = {"extra": "ignore"}

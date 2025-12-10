@@ -52,8 +52,7 @@ class NameMapper:
 
         if result:
             canonical = result["canonical_name"]
-            logger.info("canonical name matched",
-                        raw_name=raw_name, canonical_name=canonical)
+            logger.info("canonical name matched", raw_name=raw_name, canonical_name=canonical)
             return canonical
 
         # No match found
