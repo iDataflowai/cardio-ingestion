@@ -60,56 +60,58 @@ class UnitConversionEngine:
     # biomarker_name: canonical biomarker name
     # biomarker_value: dict with raw_value, raw_unit, is_range, comment
     # ----------------------------------------------------------------------
-    def normalize_value(self, biomarker_name: str, biomarker_value: int | float, biomarker_unit: str):
+    def normalize_value(self, biomarker_name: str, biomarker_obj: dict):
         biomarker_key = biomarker_name.strip().lower()
-        raw_unit = biomarker_unit.strip().lower()
+        raw_unit = biomarker_obj["raw_unit"].strip().lower()
 
-        # Look up rule
+        # Lookup rule in DB
         rule = self.conversion_map.get((biomarker_key, raw_unit))
 
+        # If no conversion rule → keep raw values
         if not rule:
-            logger.info("no unit conversion required — keeping raw values", biomarker=biomarker_name, raw_unit=raw_unit)
+            logger.info(
+                "no unit conversion required — keeping raw values",
+                biomarker=biomarker_name,
+                raw_unit=raw_unit
+            )
             return {
                 "canonical_name": biomarker_name,
-                "normalized_value": biomarker_value,   # unchanged
-                "normalized_unit": biomarker_unit,   # unchanged
-                "is_range": False
+                "normalized_value": biomarker_obj["raw_value"],
+                "normalized_unit": biomarker_obj["raw_unit"],
+                "is_range": biomarker_obj["is_range"],
+                "comment": biomarker_obj.get("comment", "")
             }
 
         factor = rule["factor"]
         offset = rule["offset"]
         unit_to = rule["unit_to"]
 
-        # ---------------------------
-        # Case 1: single numeric value
-        # ---------------------------
-        if not biomarker_value["is_range"]:
-            raw_value = biomarker_value["raw_value"]
-
+        # Single numeric value
+        if not biomarker_obj["is_range"]:
+            raw_value = biomarker_obj["raw_value"]
             normalized = raw_value * factor + offset
 
             return {
                 "canonical_name": biomarker_name,
                 "normalized_value": normalized,
                 "normalized_unit": unit_to,
-                "is_range": False
+                "is_range": False,
+                "comment": biomarker_obj.get("comment", "")
             }
 
-        # ---------------------------
-        # Case 2: range value
-        # ---------------------------
-        raw_range = biomarker_value["raw_value"]
-
-        normalized_range = {
-            "min": raw_range["min"] * factor + offset,
-            "max": raw_range["max"] * factor + offset,
-        }
+        # Range value
+        raw_min = biomarker_obj["raw_value"]["min"]
+        raw_max = biomarker_obj["raw_value"]["max"]
 
         return {
-            "raw_value": normalized_range,
-            "raw_unit": unit_to,
+            "canonical_name": biomarker_name,
+            "normalized_value": {
+                "min": raw_min * factor + offset,
+                "max": raw_max * factor + offset
+            },
+            "normalized_unit": unit_to,
             "is_range": True,
-            "comment": biomarker_value.get("comment", "")
+            "comment": biomarker_obj.get("comment", "")
         }
 
     # ----------------------------------------------------------------------
@@ -120,9 +122,8 @@ class UnitConversionEngine:
 
         for sample in biomarkers:
             b_name = sample['canonical_name']
-            b_val = sample['raw_value']
-            b_unit = sample['raw_unit']
-            normalized_sample = self.normalize_value(b_name, b_val, b_unit)
+            normalized_sample = self.normalize_value(b_name, sample)
+            print(f"sample = {sample} -> {normalized_sample}")
 
             normalized_biomarkers.append(normalized_sample)
 
