@@ -58,5 +58,3 @@ class IngestionOrchestrator:
         self.sample_repo.save_structured_sample(validated)
 
         logger.info("payload validated successfully", user_id=validated['user_id'], trace_id=validated['trace_id'], sample_id=validated['sample_id'])
-
-        return validated
