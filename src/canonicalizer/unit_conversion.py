@@ -123,8 +123,6 @@ class UnitConversionEngine:
         for sample in biomarkers:
             b_name = sample['canonical_name']
             normalized_sample = self.normalize_value(b_name, sample)
-            print(f"sample = {sample} -> {normalized_sample}")
-
             normalized_biomarkers.append(normalized_sample)
 
         return normalized_biomarkers

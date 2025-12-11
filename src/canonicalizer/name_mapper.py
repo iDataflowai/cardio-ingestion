@@ -30,7 +30,7 @@ class NameMapper:
             cursor_factory=RealDictCursor
         )
 
-    def map_name(self, raw_name: str) -> str:
+    def map_name(self, raw_name: str) -> str | None:
         """
         Return the canonical name for the raw alias.
         If no mapping found, return None.
@@ -58,7 +58,3 @@ class NameMapper:
         # No match found
         logger.warn("no canonical match found", raw_name=raw_name)
         return None
-
-    def close(self):
-        if self.conn:
-            self.conn.close()

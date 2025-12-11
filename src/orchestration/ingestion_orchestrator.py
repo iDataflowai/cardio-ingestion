@@ -4,6 +4,9 @@ from src.schemas.raw_input_schema import RawInputSchema
 from src.utils.id_generator import trace_id_generator
 from src.canonicalizer.name_mapper import NameMapper
 from src.canonicalizer.unit_conversion import UnitConversionEngine
+from src.qc.quality_check import QCEngine
+from src.repository.sample_repository import SampleRepository
+
 from src.logger.logging_config import logger
 
 
@@ -13,8 +16,8 @@ class IngestionOrchestrator:
         self.loader = RawLoader(config)
         self.canonicalizer = NameMapper(config)
         self.unit_converter = UnitConversionEngine(config)
-#         self.qc_engine = QCEngine(config)
-#         self.builder = PayloadBuilder(config)
+        self.qc_engine = QCEngine(config)
+        self.sample_repo = SampleRepository(config)
 
     def run(self, filename: str):
 
@@ -43,9 +46,16 @@ class IngestionOrchestrator:
 
         validated["biomarkers"] = canonical_biomarkers
 
-        # 4. Unit conversion (VALUE + UNIT ONLY)
+        # 5. Unit conversion (VALUE + UNIT ONLY)
         normalized_biomarkers = self.unit_converter.normalize_all(canonical_biomarkers)
         validated["biomarkers"] = normalized_biomarkers
+
+        # 6. QC VALIDATION
+        validated["biomarkers"], qc_summary = self.qc_engine.run_qc(validated["biomarkers"])
+        validated["qc_summary"] = qc_summary
+
+        # 7. load the sample
+        self.sample_repo.save_structured_sample(validated)
 
         logger.info("payload validated successfully", user_id=validated['user_id'], trace_id=validated['trace_id'], sample_id=validated['sample_id'])
 
