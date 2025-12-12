@@ -19,4 +19,4 @@ def run_ingestion(filename: str):
 
 
 if __name__ == '__main__':
-    run_ingestion('user_12345.json')
+    run_ingestion('AIIMS-20251212-9f3a7c2b1e4d')

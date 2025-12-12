@@ -15,7 +15,7 @@ class RawLoader:
 
     def load_from_s3(self, filename: str) -> dict:
         """Load raw JSON file from S3."""
-        key = f"{self.prefix}{filename}"
+        key = f"{self.prefix}{filename}.json"
 
         logger.info("loading file from S3", bucket=self.bucket, key=key)
 
